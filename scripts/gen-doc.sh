@@ -1,3 +1,24 @@
+SEPARATOR="\n${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+# Get current timestamp for unique file suffix
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+# File to store failed links
+FAILED_LINKS_FILE="failed_links_${TIMESTAMP}.txt"
+# Clear the file at the start
+> "$FAILED_LINKS_FILE"
+# Color and icon definitions
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+ICON_DOWNLOAD="📥"
+ICON_SUCCESS="✅"
+ICON_FAIL="❌"
+ICON_DOC="📄"
+ICON_INFO="ℹ️"
 #!/bin/bash
 
 # Usage: ./gen-doc [options] <url1> <url2> ...
@@ -70,25 +91,31 @@ for url in "${LINKS[@]}"; do
 	# Remove protocol and sanitize URL to create a safe filename
 	url_no_proto=${url#*://}
 	safe_name=$(echo "$url_no_proto" | sed 's/[^A-Za-z0-9]/_/g')
-	json_name="${safe_name}.json"
+	json_name="${safe_name}_${TIMESTAMP}.json"
 	dest="$DOWNLOAD_DIR/$json_name"
 
-	echo "Downloading $url -> $dest"
+	printf "$SEPARATOR${BLUE}${ICON_DOWNLOAD} Downloading${RESET} $url -> ${BOLD}$dest${RESET}\n"
 	curl -fsSL "$url" -o "$dest"
 
 	if [ $? -eq 0 ]; then
-		echo "Downloaded: $dest"
+	printf "${GREEN}${ICON_SUCCESS} Downloaded:${RESET} $dest\n"
+	printf "$SEPARATOR"
 		# Generate HTML documentation using Redocly
-		html_name="${safe_name}.html"
+		html_name="${safe_name}_${TIMESTAMP}.html"
 		html_path="$OUTPUT_DIR/$html_name"
-		echo "Generating HTML documentation: $html_path"
+	printf "${YELLOW}${ICON_DOC} Generating HTML documentation:${RESET} $html_path\n"
 		npx redocly build-docs "$dest" -o "$html_path"
 		if [ $? -eq 0 ]; then
-			echo "HTML generated: $html_path"
+			printf "${GREEN}${ICON_SUCCESS} HTML generated:${RESET} $html_path\n"
+			printf "$SEPARATOR"
 		else
-			echo "Failed to generate HTML for: $dest" >&2
+			printf "${RED}${ICON_FAIL} Failed to generate HTML for:${RESET} $dest\n" >&2
+			printf "$SEPARATOR"
+			echo "$url" >> "$FAILED_LINKS_FILE"
 		fi
 	else
-		echo "Failed to download: $url" >&2
+	printf "${RED}${ICON_FAIL} Failed to download:${RESET} $url\n" >&2
+	printf "$SEPARATOR"
+		echo "$url" >> "$FAILED_LINKS_FILE"
 	fi
 done
